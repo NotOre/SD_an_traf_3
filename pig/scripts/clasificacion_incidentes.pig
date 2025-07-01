@@ -1,16 +1,26 @@
-%default input_dir 'filtrado_output'
-%default output_dir 'clasificacion_output'
+eventos = LOAD '/app/data/eventos_filtrados.csv' USING PigStorage(',') AS (
+    ID_evento:chararray,
+    tipo:chararray,
+    ciudad:chararray,
+    calle:chararray,
+    velocidad_kmh:chararray,
+    severidad:chararray,
+    descripcion_bloqueo:chararray,
+    pubMillis:chararray,
+    timestamp:chararray,
+    location_lat:chararray,
+    location_lon:chararray,
+    location_fin_lat:chararray,
+    location_fin_lon:chararray,
+    tipo_alerta:chararray,
+    subtipo_alerta:chararray,
+    descripcion_reporte:chararray,
+    confianza:chararray
+);
 
-filtered = LOAD '/data/$input_dir' USING PigStorage(',')
-    AS (id:chararray, type:chararray, street:chararray, city:chararray, pubmillis:long);
+por_tipo = GROUP eventos BY tipo;
 
-grouped = GROUP filtered BY (type, city);
+conteo_tipo = FOREACH por_tipo GENERATE group AS tipo_evento, COUNT(eventos) AS cantidad;
 
-counted = FOREACH grouped GENERATE 
-    group.type AS tipo, 
-    group.city AS comuna, 
-    COUNT(filtered) AS cantidad;
-
-DUMP counted;
-STORE counted INTO '/data/$output_dir' USING PigStorage(',');
+STORE conteo_tipo INTO '/app/data/clasificacion_por_tipo' USING PigStorage(',');
 

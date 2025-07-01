@@ -5,13 +5,7 @@ services:
     image: redis:7.2
     container_name: redis-server
     ports:
-      - "6379:6379"
-    deploy:
-      resources:
-        limits:
-          memory: 2G  # Limita la memoria del contenedor a 2 GB
-        reservations:
-          memory: 1G  # Asegura que el contenedor tenga al menos 1 GB de memoria
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     restart: unless-stopped
@@ -21,6 +15,43 @@ services:
       timeout: 3s
       retries: 5
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+      - http.host=0.0.0.0
+      - http.port=${ELASTIC_PORT:-9200}
+    ports:
+      - "${ELASTIC_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:${ELASTIC_PORT:-9200} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.2
+    container_name: kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://${ELASTIC_HOST:-elasticsearch}:${ELASTIC_PORT:-9200}
+    ports:
+      - "5601:5601"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q '\"state\":\"green\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
   app:
     build:
       context: .
@@ -29,11 +60,20 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    command: python main.py
-  
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - ELASTIC_HOST=${ELASTIC_HOST:-elasticsearch}
+      - ELASTIC_PORT=${ELASTIC_PORT:-9200}
+      - ELASTIC_INDEX=${ELASTIC_INDEX:-eventos_waze}
+    command: main.py
+    volumes:
+      - ./:/app
+      - ./data:/data
+    restart: "no"
+
   hadoop-pig:
     image: silicoflare/hadoop:amd
     container_name: pig_hadoop
@@ -44,18 +84,19 @@ services:
     working_dir: /app
     entrypoint: ["/bin/bash", "-c"]
     command: >
-      pig -x local scraper/scripts/limpieza_filtrado.pig &&
-      pig -x local scraper/scripts/clasificacion_incidentes.pig &&
-      pig -x local scraper/scripts/analisis_espacial_temporal.pig
+      pig -x local pig/scripts/limpieza_filtrado.pig &&
+      pig -x local pig/scripts/clasificacion_incidentes.pig &&
+      pig -x local pig/scripts/analisis_espacial_temporal.pig
     restart: "no"
     
-  pig-benchmark:
-    image: silicoflare/hadoop:amd
-    container_name: pig_benchmark
+  pig_benchmark:
+    build: ./pig_benchmark
     volumes:
-      - .:/app
-    working_dir: /app/scraper
-    entrypoint: ["/bin/bash", "evaluar_rendimiento.sh"]
-    
+      - ./pig:/pig
+      - ./data:/data
+    working_dir: /pig
+
+
 volumes:
   redis-data:
+  elasticsearch-data:

@@ -1,21 +1,33 @@
-%default input_dir 'filtrado_output'
-%default output_dir 'temporal_output'
+eventos = LOAD '/app/data/eventos_filtrados.csv' USING PigStorage(',') AS (
+    ID_evento:chararray,
+    tipo:chararray,
+    ciudad:chararray,
+    calle:chararray,
+    velocidad_kmh:chararray,
+    severidad:chararray,
+    descripcion_bloqueo:chararray,
+    pubMillis:chararray,
+    timestamp:chararray,
+    location_lat:chararray,
+    location_lon:chararray,
+    location_fin_lat:chararray,
+    location_fin_lon:chararray,
+    tipo_alerta:chararray,
+    subtipo_alerta:chararray,
+    descripcion_reporte:chararray,
+    confianza:chararray
+);
 
-filtered = LOAD '/data/$input_dir' USING PigStorage(',')
-    AS (id:chararray, type:chararray, street:chararray, city:chararray, pubmillis:long);
+extraido = FOREACH eventos GENERATE
+    ciudad AS comuna,
+    SUBSTRING(timestamp, 11, 2) AS hora;
 
-by_hour = FOREACH filtered GENERATE
-    id,
-    type,
-    city,
-    (long)(pubmillis / 3600000) AS hour_bucket;
+agrupado = GROUP extraido BY (comuna, hora);
 
-grouped = GROUP by_hour BY hour_bucket;
+conteo = FOREACH agrupado GENERATE
+    group.comuna AS comuna,
+    group.hora AS hora,
+    COUNT(extraido) AS cantidad_eventos;
 
-counted = FOREACH grouped GENERATE 
-    group AS hora, 
-    COUNT(by_hour) AS total_incidentes;
-
-DUMP counted;
-STORE counted INTO '/data/$output_dir' USING PigStorage(',');
+STORE conteo INTO '/app/data/analisis_espacial_temporal' USING PigStorage(',');
 

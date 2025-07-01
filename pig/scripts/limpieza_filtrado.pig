@@ -1,20 +1,26 @@
-%default input_file 'eventos_filtrados.csv'
-%default output_dir 'filtrado_output'
+raw = LOAD '/data/eventos_crudos.csv' USING PigStorage(',') AS (
+    ID_evento:chararray,
+    tipo:chararray,
+    ciudad:chararray,
+    calle:chararray,
+    velocidad_kmh:chararray,
+    severidad:chararray,
+    descripcion_bloqueo:chararray,
+    pubMillis:chararray,
+    timestamp:chararray,
+    location_lat:chararray,
+    location_lon:chararray,
+    location_fin_lat:chararray,
+    location_fin_lon:chararray,
+    tipo_alerta:chararray,
+    subtipo_alerta:chararray,
+    descripcion_reporte:chararray,
+    confianza:chararray
+);
 
-raw = LOAD '/data/$input_file' USING PigStorage(',')
-    AS (id:chararray, type:chararray, street:chararray, city:chararray, pubmillis:long);
+limpios = FILTER raw BY ID_evento IS NOT NULL AND tipo IS NOT NULL AND ciudad IS NOT NULL;
 
-filtered = FILTER raw BY 
-    (type IS NOT NULL AND type != '' AND
-     city IS NOT NULL AND city != '' AND
-     pubmillis IS NOT NULL);
+deduplicados = DISTINCT limpios;
 
-normalized = FOREACH filtered GENERATE 
-    id, 
-    type, 
-    street, 
-    UPPER(city) AS city, 
-    pubmillis;
+STORE deduplicados INTO 'data/eventos_filtrados' USING PigStorage(',');
 
-DUMP normalized;
-STORE normalized INTO '/data/$output_dir' USING PigStorage(',');
