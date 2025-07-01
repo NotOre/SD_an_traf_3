@@ -12,44 +12,50 @@ Este proyecto sera dividido en 3 entregas que se iran actualizando con respecto 
 Para ejecutar el codigo de esta entrega se prepararon 2 opciones principales, al guiarte por una de estas opciones debe ser ejecutada mediante una terminal que debes abrir dentro de la carpeta que almacena todos los archivos de nuestro sistema:
 
 ## Opcion 1: Make
-Esta opcion fue creada con el objetivo de facilitar aun mas la utilizacion de nuestro sistema, quitando la necesidad de escribir comandos "largos" para ejecutar nuestro sistema basado en Docker, para esto, nuestro "Make" incluye las siguientes funciones:
+Este proyecto incluye un Makefile para facilitar la ejecución de tareas comunes y el manejo del entorno Docker. El uso de make estandariza los comandos necesarios para ejecutar, probar, limpiar y mantener el sistema, sin necesidad de recordar instrucciones complejas.
 
-### Cuando NO se han realizado modificaciones a ningun codigo
+#### Construye los servicios definidos en Docker Compose.
+```bash
+make build
+```
 
-#### Construir imagenes y levantar contenedores (Inicia el sistema)
+#### Inicia todos los servicios en segundo plano (-d).
 ```bash
 make up
 ```
 
-### Cuando SI se han realizado modificaciones a algun codigo
-
-#### 1) Reconstruir las imagenes
-```bash
-make build
-```
-#### 2) Levantar contenedores (Inicia el sistema)
-```bash
-make start
-```
-### Funciones extra
-
-#### Detener contenedores (Usar en caso de querer detener el sistema, como para modificar algo del codigo o en caso de alguna falla ocurrida)
+#### 	Detiene y elimina los contenedores sin borrar volúmenes.
 ```bash
 make down
 ```
-#### Ver logs en vivo (Usar para ver lo que ocurre durante la ejecucion del sistema)
+#### 	Muestra los logs de todos los servicios en tiempo real.
 ```bash
 make logs
 ```
 
-#### Correr las funciones de Apache Pig
+#### Abre una shell interactiva en el contenedor principal scraper-storage-app.
 ```bash
-make run-pig
+make shell
 ```
 
-#### Correr la funcion para evaluar el rendimiento de Apache Pig
+#### 	Prueba la conexión con Elasticsearch usando curl.
 ```bash
-make benchmark-pig
+make elastic
+```
+
+#### 	Ejecuta el script index_to_elastic.py dentro del contenedor.
+```bash
+make index
+```
+
+#### 	Elimina contenedores, volúmenes y redes huérfanas del entorno.
+```bash
+make reset
+```
+
+#### 	Borra archivos generados (.csv, .json, .log) del directorio data/.
+```bash
+make clean
 ```
 
 ## Opcion 2: Docker-compose
@@ -76,14 +82,4 @@ docker-compose down
 ####  Ver logs en vivo (Usar para ver lo que ocurre durante la ejecucion del sistema)
 ```bash
 docker-compose logs -f
-```
-
-#### Correr las funciones de Apache Pig
-```bash
-docker exec -it pig bash scraper/run_pig.sh
-```
-
-#### Correr la funcion para evaluar el rendimiento de Apache Pig
-```bash
-docker-compose run --rm pig-benchmark
 ```
